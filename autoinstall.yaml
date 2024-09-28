@@ -1,0 +1,83 @@
+#cloud-config
+autoinstall:
+  version: 1
+  refresh-installer:
+    update: true
+  identity:
+    hostname: k8s-kraken
+    username: ansible
+    password: "$6$NpV6LpKUD7A4X/oL$uCOK9s4rMkboROdWwdNyr469NuY0eUfjcHMDGVdG9Nu4r6eApO55RZnPe3kTHvxycLbQ4nzz9EegZqSnirk4P/"
+    # Password is hashed using SHA-512. You can generate this using `mkpasswd --method=SHA-512`.
+
+  keyboard:
+    layout: "us"
+    variant: ""
+
+  locale: en_US.UTF-8
+
+  # Optional: set up network configuration
+network:
+  version: 2
+  ethernets:
+    eth0:
+      addresses:
+        - 10.0.2.10/24   # Replace with your desired static IP
+      nameservers:
+        search:
+          - ssyounger.com
+        addresses:
+          - 10.0.1.1
+          - 10.0.1.2
+      mtu: 9000  # Enabling jumbo frames
+      routes:
+        - to: 0.0.0.0/0
+          via: 10.0.1.1  # Replace with your gateway
+          on-link: true
+          
+  ssh:
+    install-server: true
+    allow-pw: true
+    authorized-keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE4VJbgTwyZJDdcZ3jIoIMk75rrBNyc0omxcMiYoEsre
+
+  # Disk setup
+  storage:
+    layout:
+      name: direct
+    swap:
+      size: 0 # Disable swap by setting the size to 0
+
+  # Configure packages to install
+  packages:
+    - openssh-server
+    - curl
+    - git
+    - vim
+    - nfs-common
+    - open-iscsi
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - jq
+    - software-properties-common
+    - gnupg
+    - lsb-release
+    - net-tools
+
+  # Late commands for customization after the installation
+  late-commands:
+    - curtin in-target --target=/target adduser --disabled-password --gecos "syounger" syounger
+    - curtin in-target --target=/target echo "syounger:fortitude" | chpasswd
+    - curtin in-target --target=/target usermod -aG sudo syounger
+    - curtin in-target --target=/target mkdir -p /home/syounger/.ssh
+    - curtin in-target --target=/target echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP8gjnzA7gsfPXg8DJJNhPAdld4DFUcEtUGqM0JPIHFC" > /home/syounger/.ssh/authorized_keys
+    - curtin in-target --target=/target chown -R syounger:syounger /home/syounger/.ssh
+    - curtin in-target --target=/target chmod 700 /home/syounger/.ssh
+    - curtin in-target --target=/target chmod 600 /home/syounger/.ssh/authorized_keys
+    - curtin in-target --target=/target apt update
+    - curtin in-target --target=/target apt dist-upgrade -y
+    - curtin in-target --target=/target systemctl enable ssh
+
+  # Reboot after installation
+  power_state:
+    mode: reboot
